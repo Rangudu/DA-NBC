@@ -12,6 +12,8 @@ import scipy.stats as stats
 
 [stats.normaltest(irisData.data[irisData.target == x]) for x in set(irisData.target)]
 
+[stats.chi2_contingency(irisData.data[irisData.target == x]) for x in set(irisData.target)]
+
 clf = GaussianNB()
 
 recall = [np.mean(cross_validation.cross_val_score(clf, irisData.data, irisData.target, cv = x, scoring = 'recall')) for x in range(5,11)]
