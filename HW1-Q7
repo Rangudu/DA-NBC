@@ -1,0 +1,153 @@
+# -*- coding: utf-8 -*-
+"""
+Spyder Editor
+
+This is a temporary script file.
+"""
+
+import numpy as np
+import pandas as pd
+import re
+from nltk.corpus import stopwords
+import string
+import nltk.data
+from sklearn.naive_bayes import MultinomialNB
+from sklearn import cross_validation
+from sklearn.metrics import make_scorer
+from sklearn.metrics import confusion_matrix
+from nltk.stem.wordnet import WordNetLemmatizer
+
+
+JAf = open('C:\Users\VENKATAPAVANKUMAR\Documents\DA\JANB.txt','r')
+SHf = open('C:\Users\VENKATAPAVANKUMAR\Documents\DA\SHNB.txt','r')
+
+JAData = JAf.read()
+SHData = SHf.read()
+
+SHf.close()
+JAf.close()
+
+JAOrig = JAData
+SHOrig = SHData
+
+l = raw_input('Enter value of l: ')
+
+lmtizer = WordNetLemmatizer()
+
+def find_lemma(x):
+    x = lmtizer.lemmatize(x)
+    x = lmtizer.lemmatize(x,'a') 
+    x = lmtizer.lemmatize(x,'v')
+    x = lmtizer.lemmatize(x,'r')
+    return x
+    
+JAData = JAData.lower()
+SHData = SHData.lower()
+STWords = stopwords.words('english')
+
+punctuation = re.compile('[%s]' % re.escape('!\'"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\n\r\t\b'))
+SHData = punctuation.sub(' ', SHData)
+JAData = punctuation.sub(' ', JAData)
+
+regex = '\\b('+"|".join(STWords)+')\\b'
+regex = regex.lower()
+SHData = re.sub(regex, '' , SHData)
+JAData = re.sub(regex, '' , JAData)
+
+SHWords = re.findall(r'\b\w+\b', SHData)
+JAWords = re.findall(r'\b\w+\b', JAData)
+
+SHWords = [find_lemma(x) for x in SHWords]
+JAWords = [find_lemma(x) for x in JAWords]
+
+SHWFMap = pd.Series(SHWords).value_counts()
+JAWFMap = pd.Series(JAWords).value_counts()
+
+Features = SHWFMap.index[:1768]
+Features = Features.union(JAWFMap.index[:1000])
+
+DataSet = pd.DataFrame(columns=Features)
+
+SHLines = SHOrig
+JALines = JAOrig
+
+#detector = nltk.data.load('tokenizers/punkt/engish.pickle')
+#SHLines = detector.tokenizer(SHLines.strip())
+#JALines = detector.tokenizer(JALines.strip())
+splitter = re.compile('[.!?]')
+SHLines = splitter.split(SHLines)
+JALines = splitter.split(JALines)
+
+SHIndex = np.arange(len(SHLines)/l)
+np.random.shuffle(SHIndex)
+JAIndex = np.arange(len(JALines)/l)
+np.random.shuffle(JAIndex)
+
+SHIndex = SHIndex[:48]
+JAIndex = JAIndex[:24]
+
+def normalize(line):
+    line.lower()
+    punctuation = re.compile('[%s]' % re.escape('!\'"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\n\r\t\b'))
+    line = punctuation.sub(' ', line)
+    words = re.findall(r'\b\w+\b', line)
+    words = [find_lemma(x) for x in words]
+    return words
+
+print('Creating DataSet')
+#l=1
+for index in SHIndex:
+    #print(l)
+    #l=l+1
+    words = normalize(" ".join(SHLines[index:index+l]))
+    SHDataSet = pd.Series(words).value_counts()
+    wordSet = SHDataSet.index
+    wordSet = wordSet & Features
+    SHDataSet = SHDataSet.reindex(wordSet)
+    SHDataSet = pd.DataFrame(SHDataSet).T
+    SHDataSet = SHDataSet.reindex(columns=Features)
+    DataSet = DataSet.append(SHDataSet, ignore_index = True)
+
+#l=1
+for index in JAIndex:
+    #print(l)
+    #l=l+1
+    wordSet = normalize(JALines[index])
+    JADataSet = pd.Series(words).value_counts()
+    wordSet = JADataSet.index
+    wordSet = wordSet & Features
+    JADataSet = JADataSet.reindex(wordSet)
+    JADataSet = pd.DataFrame(JADataSet).T
+    JADataSet = JADataSet.reindex(columns=Features)
+    DataSet = DataSet.append(JADataSet, ignore_index = True)
+
+DataSet = DataSet.fillna(0)
+Lables = np.zeros(len(SHIndex)+len(JAIndex))
+Lables[len(SHIndex):] = 1
+
+def scoring_func(y_true,y_pred):    
+    cm = confusion_matrix(y_true, y_pred)
+    #print(cm)
+    misClfError = ((cm[0][1]+cm[1][0])*1.0)/((1.0)*(cm[0][0]+cm[0][1]+cm[1][0]+cm[1][1]))
+    return misClfError
+
+print('Misclassification Error')
+MLE = MultinomialNB(alpha=0)
+LE = MultinomialNB()
+
+misclassificationError = make_scorer(scoring_func)
+cv = cross_validation.KFold(len(Lables),5, shuffe = True)
+msclfErr = cross_validation.cross_val_score(LE, DataSet.as_matrix(), Lables, cv = cv, scoring = misclassificationError, shuffle = True, )
+MSCFErr = msclfErr.mean()
+print('MLE ',MSCFErr)
+
+misclassificationError = make_scorer(scoring_func)
+cv = cross_validation.KFold(len(Lables),5, shuffe = True)
+msclfErr = cross_validation.cross_val_score(LE, DataSet.as_matrix(), Lables, cv = cv, scoring = misclassificationError, shuffle = True, )
+MSCFErr = msclfErr.mean()
+print('LE ',MSCFErr)
+
+
+ 
+
+
