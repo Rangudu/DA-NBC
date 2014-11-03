@@ -1,0 +1,59 @@
+#!/bin/python
+
+from sklearn.feature_selection import *
+from sklearn.datasets import fetch_20newsgroups
+newsgroups_getcategories = fetch_20newsgroups(subset='all')
+
+categories = newsgroups_getcategories.target_names
+
+from sklearn.feature_extraction.text import TfidfVectorizer
+newsgroups = fetch_20newsgroups(subset='all',remove=('headers', 'footers', 'quotes'),categories=categories)
+vectorizer=TfidfVectorizer(sublinear_tf=True, max_df=0.5, stop_words='english')
+vectors_tf=vectorizer.fit_transform(newsgroups.data)
+
+from sklearn import cross_validation
+import numpy as np
+
+dataset = []
+nf = [100, 500, 1000]
+
+for k in nf:
+    fselection = SelectKBest(chi2, k=k)
+    dataset.append(fselection.fit_transform(vectors_tf, newsgroups.target))
+
+
+from sklearn import cross_validation
+from sklearn.tree import DecisionTreeClassifier
+tree_accu=[]
+tree_clf = DecisionTreeClassifier(random_state=0)
+accu=0
+for i in range(0, len(nf)):
+    accu=cross_validation.cross_val_score(tree_clf, dataset[i].toarray(), newsgroups.target, cv=10, scoring='accuracy').mean()
+    print accu
+    tree_accu.append(accu)
+    
+from sklearn import neighbors
+knn = [1, 5, 10, 12, 15]
+knn_accu=[]
+temp=[]
+for k in knn:
+     count = 0
+     temp=[]
+     for i in range(0, len(nf)):
+        knn_clf = neighbors.KNeighborsClassifier(n_neighbors=k, weights='distance')
+        accu = cross_validation.cross_val_score(knn_clf, dataset[i].toarray(), newsgroups.target, cv=10, scoring='accuracy').mean()    
+        print accu
+        temp.append(accu)
+     knn_accu.append(temp)
+
+from sklearn.naive_bayes import MultinomialNB
+mnb_clf = MultinomialNB()
+mnb_accu=[]
+for i in range(0, len(nf)):
+    accu = cross_validation.cross_val_score(mnb_clf, dataset[i].toarray(), newsgroups.target, cv=10, scoring='accuracy').mean()
+    print accu
+    mnb_accu.append(accu)
+
+
+
+
